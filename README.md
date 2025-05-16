@@ -1,9 +1,8 @@
-# MCOS (**M**ulti**c**cursor **O**n **S**elect)
+# MCOS (**M**ulti**c**ursor **O**n **S**elect)
 
-This is an extension of
-[jake-stewart/multicursor.nvim](https://github.com/jake-stewart/multicursor.nvim)
-that creates a user command for adding multicursors on a selection with preview
-as you type!
+This is an extension of [jake-stewart/multicursor.nvim](https://github.com/jake-stewart/multicursor.nvim) that creates a user command for adding multicursors on a selection with a preview as you type!
+
+![mcnos-example](https://github.com/user-attachments/assets/c8817481-cb75-4eea-8471-d66c2c35e5b1)
 
 ## Install
 
