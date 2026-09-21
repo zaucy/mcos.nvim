@@ -1,6 +1,14 @@
-local util = require('mcos.util')
-
 local M = {}
+
+local function get_hl(preferred, fallback)
+	if vim.fn.hlexists(preferred) == 1 then
+		return preferred
+	end
+	if fallback and vim.fn.hlexists(fallback) == 1 then
+		return fallback
+	end
+	return preferred
+end
 
 local function mcos_command(ns, opts, cmd_opts)
 	local line1 = cmd_opts.line1
@@ -8,9 +16,9 @@ local function mcos_command(ns, opts, cmd_opts)
 	local buf = vim.api.nvim_get_current_buf()
 	local pat = cmd_opts.args
 	local cursors = {}
-	local cursor_hl = vim.api.nvim_get_hl_id_by_name("MultiCursorCursor")
-	local search_hl = vim.api.nvim_get_hl_id_by_name("MultiCursorMatchPreview")
-	local visual_hl = vim.api.nvim_get_hl_id_by_name("MultiCursorVisual")
+	local cursor_hl = get_hl("MCursor", get_hl("MultiCursorCursor", "CurSearch"))
+	local search_hl = get_hl("MultiCursorMatchPreview", "Search")
+	local visual_hl = get_hl("MCursorVisual", get_hl("MultiCursorVisual", "Visual"))
 
 	if #pat > 0 then
 		while line1 ~= line2 + 1 do
@@ -68,31 +76,49 @@ function M.setup(opts)
 		max_line_matches = 256,
 	})
 	vim.api.nvim_create_user_command("MCOS", function(cmd_opts)
-		local mc = require("multicursor-nvim")
 		local ns = vim.api.nvim_create_namespace("MCOS")
 		local success, error_or_cursors = pcall(mcos_command, ns, opts, cmd_opts)
 		if success then
 			local cursor_positions = {}
 			for _, cursor_id in ipairs(error_or_cursors) do
 				local cursor_pos = vim.api.nvim_buf_get_extmark_by_id(0, ns, cursor_id, {})
-				table.insert(cursor_positions, { cursor_pos[1] + 1, cursor_pos[2] + 1 })
+				table.insert(cursor_positions, { cursor_pos[1] + 1, cursor_pos[2] })
 			end
 			vim.api.nvim_buf_clear_namespace(0, ns, 0, -1)
-			mc.action(function(ctx)
-				ctx:clear()
-				--- @type Cursor[]
-				local cursors = {}
-				for _, cursor_pos in ipairs(cursor_positions) do
-					local cursor = ctx:addCursor()
-					cursor:setPos(cursor_pos)
-					table.insert(cursors, cursor)
-				end
 
-				if #cursors > 0 then
-					ctx:mainCursor():delete()
-					cursors[1]:select()
+			if #cursor_positions > 0 then
+				if vim.api.nvim_mcursor ~= nil then
+					vim.schedule(function()
+						local mc_ns = vim.api.nvim_create_namespace("nvim.multicursor")
+						vim.api.nvim_buf_clear_namespace(0, mc_ns, 0, -1)
+
+						vim.api.nvim_win_set_cursor(0, { cursor_positions[1][1], cursor_positions[1][2] })
+						for i = 2, #cursor_positions do
+							vim.api.nvim_mcursor(0, { cursor_positions[i][1], cursor_positions[i][2] })
+						end
+						if #cursor_positions > 1 then
+							vim.cmd("normal! 1q=")
+						end
+					end)
+				else
+					local mc = require("multicursor-nvim")
+					mc.action(function(ctx)
+						ctx:clear()
+						--- @type Cursor[]
+						local cursors = {}
+						for _, cursor_pos in ipairs(cursor_positions) do
+							local cursor = ctx:addCursor()
+							cursor:setPos({ cursor_pos[1], cursor_pos[2] + 1 })
+							table.insert(cursors, cursor)
+						end
+
+						if #cursors > 0 then
+							ctx:mainCursor():delete()
+							cursors[1]:select()
+						end
+					end)
 				end
-			end)
+			end
 		else
 			vim.api.nvim_buf_clear_namespace(0, ns, 0, -1)
 			error(error_or_cursors, vim.log.levels.ERROR)
@@ -108,9 +134,9 @@ function M.setup(opts)
 				local error_message = error_or_cursors
 				local buf = vim.api.nvim_get_current_buf()
 				vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Preview Function Failed", error_message })
-				return 2
+				return 1
 			end
-			return 2
+			return 1
 		end,
 	})
 
@@ -120,14 +146,17 @@ function M.setup(opts)
 end
 
 local function mcos_cmdline(range)
-	vim.fn.feedkeys(":")
-	local cmdline = range .. "MCOS "
-	util.setcmdline_delayed(cmdline, #cmdline + 1)
+	local esc = ""
+	if vim.fn.mode():match("[vV\22]") then
+		esc = vim.api.nvim_replace_termcodes("<Esc>", true, false, true)
+	end
+	vim.api.nvim_feedkeys(esc .. ":" .. range .. "MCOS ", "in", false)
 end
 
 function M._operatorfunc(_)
-	vim.cmd("normal! `[v`]")
-	mcos_cmdline("'<,'>")
+	local l1 = vim.fn.line("'[")
+	local l2 = vim.fn.line("']")
+	mcos_cmdline(string.format("%d,%d", l1, l2))
 end
 
 function M.opkeymapfunc()

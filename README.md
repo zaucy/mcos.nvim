@@ -1,27 +1,14 @@
 # mcos.nvim
 
-MCOS (**M**ulti**c**ursor **O**n **S**elect) an extension of the [jake-stewart/multicursor.nvim](https://github.com/jake-stewart/multicursor.nvim) plugin that creates a user command for adding multicursors on a selection with a preview as you type!
+MCOS (**M**ulti**c**ursor **O**n **S**elect) creates a user command for adding neovims native multicursors (`:help multicursor`) on a selection with a preview as you type! Requires neovim 0.13+
 
-![mcnos-example](https://github.com/user-attachments/assets/c8817481-cb75-4eea-8471-d66c2c35e5b1)
+![mcos-example](https://github.com/user-attachments/assets/c8817481-cb75-4eea-8471-d66c2c35e5b1)
 
 ## Install
 
-Use lazy plugin manager
-
 ```lua
-{
-	"zaucy/mcos.nvim",
-	dependencies = {
-		"jake-stewart/multicursor.nvim",
-	},
-	config = function()
-		local mcos = require('mcos')
-		mcos.setup({})
-
-		-- mcos doesn't setup any keymaps
-		-- here are some recommended ones
-		vim.keymap.set({ 'n', "v" }, 'gms', mcos.opkeymapfunc, { expr = true })
-		vim.keymap.set({ 'n' }, 'gmss', mcos.bufkeymapfunc)
-	end,
-}
+vim.pack.add({
+	name = "mcos",
+	src = "https://github.com/zaucy/mcos.nvim"
+})
 ```
